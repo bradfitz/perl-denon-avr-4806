@@ -34,12 +34,31 @@ send_to_denon(fromhex("ff fa 18 00",
                       "ff f0",  # suboption end
                       ));
 
-expect_from_denon("BridgeCo AG Telnet server\x0a\x0d");
+# expect_from_denon("BridgeCo AG Telnet server\x0a\x0d");
 
-print "Reading...\n";
-my $buf;
-while (sysread($sock, $buf, 300)) {
-    print "Read: [", printable($buf), "]\n";
+my $child = fork;
+unless (defined($child)) {
+    die "Fork failure.";
+}
+
+if ($child) {
+    # we're the parent process.  accept input.
+    $| = 1;
+    while (1) {
+        print "DENON> ";
+        my $line = <STDIN>;
+        chomp $line;
+        if (!$line) {
+            next;
+        }
+        send_to_denon($line . "\x0d");
+    }
+} else {
+    # child process.
+    my $buf;
+    while (sysread($sock, $buf, 300)) {
+        print "Read: [", printable($buf), "]\n";
+    }
 }
 
 sub expect_from_denon {
